@@ -28,4 +28,9 @@ class MedicalTerm(BaseModel):
 def entity_list_json_schema() -> dict:
     """JSON schema for a top-level array of MedicalTerm, used to constrain
     vLLM guided decoding to the exact shape the model was trained on."""
-    return {"type": "array", "items": MedicalTerm.model_json_schema()}
+    item_schema = MedicalTerm.model_json_schema()
+    defs = item_schema.pop("$defs", None)
+    schema = {"type": "array", "items": item_schema}
+    if defs:
+        schema["$defs"] = defs
+    return schema
