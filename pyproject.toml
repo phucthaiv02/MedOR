@@ -9,10 +9,6 @@ dependencies = [
     "pyyaml>=6.0",
     "pydantic>=2.0",
     "python-dotenv>=1.0",
-]
-
-[project.optional-dependencies]
-train = [
     "transformers>=4.46",
     "trl>=0.12",
     "peft>=0.13",
@@ -21,10 +17,7 @@ train = [
     "unsloth",
     "unsloth_zoo",
     "wandb>=0.18",
-]
-infer = [
     "vllm>=0.6",
-    "transformers>=4.46",
 ]
 
 [build-system]
