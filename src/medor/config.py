@@ -62,6 +62,11 @@ class TrainConfig(BaseModel):
     hub_merged_branch: str = "merged"
 
 
+class CandidateKBConfig(BaseModel):
+    entity_type: str
+    csv_path: str
+
+
 class SamplingConfig(BaseModel):
     temperature: float = 0.0
     top_p: float = 1.0
@@ -86,6 +91,15 @@ class InferConfig(BaseModel):
     guided_decoding: bool = True
 
     sampling: SamplingConfig = Field(default_factory=SamplingConfig)
+
+    # Candidate retrieval: for each entry in `candidate_kbs`, entities whose type
+    # matches `entity_type` are matched (via SapBERT embedding similarity) against
+    # that entry's `csv_path` (columns: name, code), and the top-k closest codes
+    # are attached as a `candidates` field. Disabled when candidate_kbs is empty.
+    # e.g. one KB for CHẨN_ĐOÁN (disease codes) and another for THUỐC (drug codes).
+    embedding_model: str = "cambridgeltl/SapBERT-UMLS-2020AB-all-lang-from-XLMR"
+    candidate_top_k: int = 1
+    candidate_kbs: List[CandidateKBConfig] = Field(default_factory=list)
 
 
 class EvalConfig(BaseModel):

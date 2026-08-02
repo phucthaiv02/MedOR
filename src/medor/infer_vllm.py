@@ -58,6 +58,20 @@ def align_entities(input_text, entities):
     return aligned, n_dropped
 
 
+def load_embedding_model(embedding_model_name):
+    """Load the SapBERT model/tokenizer shared across all candidate KBs.
+    Import torch/transformers lazily so the module stays importable without
+    them when candidate retrieval is disabled."""
+    import torch
+    from transformers import AutoModel, AutoTokenizer
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    tokenizer = AutoTokenizer.from_pretrained(embedding_model_name)
+    model = AutoModel.from_pretrained(embedding_model_name).to(device)
+    model.eval()
+    return tokenizer, model, device
+
+
 def main():
     load_dotenv()
 
@@ -124,11 +138,10 @@ def main():
 
     outputs = llm.generate(prompts, sampling_params, **generate_kwargs)
 
-    os.makedirs(cfg.output_dir, exist_ok=True)
     n_invalid = 0
     n_dropped_total = 0
-    for path, text, out in zip(txt_paths, texts, outputs):
-        stem = os.path.splitext(os.path.basename(path))[0]
+    all_aligned = []
+    for text, out in zip(texts, outputs):
         raw_output = out.outputs[0].text.strip()
         try:
             entities = json.loads(raw_output)
@@ -140,7 +153,30 @@ def main():
 
         aligned, n_dropped = align_entities(text, entities)
         n_dropped_total += n_dropped
+        all_aligned.append(aligned)
 
+    if cfg.candidate_kbs:
+        from .candidates import attach_candidates, embed_texts, load_kb
+
+        kb_tokenizer, kb_model, kb_device = load_embedding_model(cfg.embedding_model)
+        for kb_cfg in cfg.candidate_kbs:
+            kb_names, kb_codes = load_kb(kb_cfg.csv_path)
+            kb_embeddings = embed_texts(kb_names, kb_tokenizer, kb_model, kb_device, batch_size=128)
+            attach_candidates(
+                all_aligned,
+                kb_names,
+                kb_codes,
+                kb_embeddings,
+                kb_tokenizer,
+                kb_model,
+                kb_device,
+                top_k=cfg.candidate_top_k,
+                target_type=kb_cfg.entity_type,
+            )
+
+    os.makedirs(cfg.output_dir, exist_ok=True)
+    for path, aligned in zip(txt_paths, all_aligned):
+        stem = os.path.splitext(os.path.basename(path))[0]
         out_path = os.path.join(cfg.output_dir, f"{stem}.json")
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(aligned, f, ensure_ascii=False, indent=2)

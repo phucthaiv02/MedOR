@@ -2,7 +2,7 @@ base_model: unsloth/Qwen3-8B
 lora_path: outputs/qwen3-medor-lora
 merged_model_path: outputs/qwen3-medor-merged
 
-input_dir: data/medor/eval/txt
+input_dir: datasets/test
 output_dir: outputs/predictions
 limit: null
 
@@ -20,3 +20,15 @@ sampling:
   stop:
     - "<|im_end|>"
     - "<|endoftext|>"
+
+# Candidate retrieval (optional): for each entry below, entities of
+# `entity_type` are matched via SapBERT embedding similarity against
+# `csv_path` (columns: name, code), and the top-k closest codes are attached
+# as a `candidates` field. Leave candidate_kbs empty to skip this step.
+embedding_model: cambridgeltl/SapBERT-UMLS-2020AB-all-lang-from-XLMR
+candidate_top_k: 1
+candidate_kbs:
+  - entity_type: CHẨN_ĐOÁN
+    csv_path: datasets/disease.csv
+  - entity_type: THUỐC
+    csv_path: datasets/drug.csv
