@@ -1,2 +1,101 @@
 # MedOR
 Ontological Reasoning in Medical Knowledge Retrieval
+
+Pipeline fine-tune **Qwen2.5** để trích xuất thực thể y khoa (triệu chứng, chẩn đoán, xét nghiệm, thuốc...) từ văn bản bệnh án tiếng Việt, dùng **Unsloth** để train, **vLLM** để inference, quản lý package bằng **uv**.
+
+## 1. Cài đặt
+
+Project dùng `uv`, Python 3.12 (khai báo ở `.python-version`).
+
+```bash
+# Chỉ các phụ thuộc cơ bản (pandas, datasets, pydantic, dotenv...)
+uv sync
+
+# Máy dùng để TRAIN (cần GPU, cài thêm unsloth/trl/peft/wandb...)
+uv sync --extra train
+
+# Máy dùng để INFERENCE (cần GPU, cài thêm vllm)
+uv sync --extra infer
+```
+
+Tạo file `.env` ở gốc repo (đã có sẵn, đã gitignore) để chứa secrets:
+
+```
+WANDB_API_KEY = <wandb api key>
+HF_TOKEN = <huggingface token>
+```
+
+`train.py` và `infer_vllm.py` tự động load `.env` khi chạy — không cần `export` tay. `WANDB_API_KEY` được `wandb` tự đọc để log, `HF_TOKEN` được `huggingface_hub` tự đọc khi tải model gated hoặc khi `push_to_hub`.
+
+## 2. Chuẩn bị dữ liệu
+
+```bash
+# Tải dataset phucthaiv02/medor từ HF, bỏ trường "position", chia train/test 90/10
+uv run python data/medor/download_medor.py
+# -> data/medor/train.csv, data/medor/test.csv
+
+# Tách test.csv thành từng cặp file .txt (input) / .json (gold entities) để phục vụ eval
+uv run python -m src.medor.prepare_eval
+# -> data/medor/eval/txt/{i}.txt, data/medor/eval/gold/{i}.json
+```
+
+## 3. Train
+
+Cấu hình nằm ở [`configs/train.yaml`](configs/train.yaml), chỉnh trực tiếp file này thay vì sửa code.
+
+```bash
+uv run python -m src.medor.train --config configs/train.yaml
+```
+
+Các trường quan trọng trong `configs/train.yaml`:
+
+| Trường | Ý nghĩa |
+|---|---|
+| `base_model` | Model gốc. Mặc định `unsloth/Qwen2.5-7B-Instruct` (bf16). Chỉ đổi sang bản `-bnb-4bit` nếu GPU ít VRAM (<24GB); trên H100/H200 không cần 4-bit. |
+| `load_in_4bit` | `false` khi có đủ VRAM để load bf16 (khuyến nghị trên H100/H200). |
+| `train_csv` / `val_csv` / `val_split` | Nguồn dữ liệu train. Nếu `val_csv: null` thì tự tách `val_split` (mặc định 5%) từ `train_csv`. |
+| `max_seq_length` | Ngưỡng context length (token). Sample có độ dài (prompt+response) ≥ ngưỡng này sẽ bị loại khỏi tập train, log số lượng bị drop ra console. |
+| `lora.*` | Tham số LoRA (r, alpha, dropout, target_modules). |
+| `output_dir` | Nơi lưu LoRA adapter. |
+| `merged_dir` | Nơi lưu **model merge 16-bit đầy đủ** — luôn được lưu sau khi train xong, dùng thẳng làm `model=...` cho vLLM, không cần merge adapter thủ công. |
+| `num_train_epochs`, `per_device_train_batch_size`, `gradient_accumulation_steps`, `learning_rate`, ... | Hyperparameter train chuẩn của HF `Trainer`. |
+| `report_to`, `wandb_project`, `wandb_run_name` | Bật log W&B (mặc định `wandb`). Cần `WANDB_API_KEY` trong `.env`. |
+| `push_to_hub`, `hub_model_id`, `hub_private`, `hub_token` | Nếu `push_to_hub: true`, sau khi train xong sẽ push model đã merge lên HF Hub tại `hub_model_id`. **Phải set `hub_model_id`**, nếu không script sẽ báo lỗi ngay từ đầu. Cần `HF_TOKEN` trong `.env` (hoặc set `hub_token`). |
+
+Kết thúc training sẽ có:
+- `outputs/qwen2.5-medor-lora/` — LoRA adapter + tokenizer
+- `outputs/qwen2.5-medor-merged/` — model merge 16-bit, sẵn sàng nạp vào vLLM
+
+## 4. Inference (vLLM)
+
+Cấu hình ở [`configs/infer.yaml`](configs/infer.yaml). Input là một **thư mục chứa các file `.txt`** (mỗi file 1 văn bản cần trích xuất), output là **thư mục chứa file `.json` cùng tên** (danh sách entity trích xuất được).
+
+```bash
+uv run python -m src.medor.infer_vllm --config configs/infer.yaml
+```
+
+- `merged_model_path` (mặc định trỏ tới `outputs/qwen2.5-medor-merged`) được ưu tiên dùng nếu có sẵn; nếu để `null` thì dùng `base_model` + `lora_path` qua cơ chế LoRA của vLLM.
+- `input_dir` / `output_dir`: đổi sang thư mục dữ liệu thực tế khi chạy inference production (ví dụ một thư mục hồ sơ bệnh án mới), không nhất thiết phải là `data/medor/eval/*`.
+- Nếu model trả về JSON không hợp lệ, file `.json` tương ứng sẽ chứa `{"error": "invalid_json", "raw_output": ...}` thay vì bị bỏ qua.
+
+## 5. Đánh giá
+
+```bash
+uv run python -m src.medor.evaluate --config configs/eval.yaml
+```
+
+So khớp từng cặp file `predictions_dir/{i}.json` với `gold_dir/{i}.json` (theo tên file), tính precision/recall/F1 theo entity (`match_mode: text_type` hoặc `text_type_assertions`), và tỉ lệ output JSON không hợp lệ. Kết quả in ra console và lưu vào `metrics_output` (mặc định `outputs/eval/metrics.json`).
+
+## 6. Quy trình đầy đủ (tóm tắt)
+
+```bash
+uv run python data/medor/download_medor.py
+uv run python -m src.medor.prepare_eval
+
+uv sync --extra train
+uv run python -m src.medor.train --config configs/train.yaml
+
+uv sync --extra infer
+uv run python -m src.medor.infer_vllm --config configs/infer.yaml
+uv run python -m src.medor.evaluate --config configs/eval.yaml
+```
