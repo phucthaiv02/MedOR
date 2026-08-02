@@ -11,6 +11,12 @@ gpu_memory_utilization: 0.85
 tensor_parallel_size: 1
 guided_decoding: true
 
+# Concurrency tuning: raise these to let vLLM run more samples at once on the
+# GPU (bounded by KV-cache capacity from gpu_memory_utilization/max_model_len).
+# Leave null to use vLLM's defaults.
+max_num_seqs: 256
+max_num_batched_tokens: null
+
 sampling:
   temperature: 0.0
   top_p: 1.0

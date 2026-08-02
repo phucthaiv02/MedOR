@@ -90,6 +90,13 @@ class InferConfig(BaseModel):
     tensor_parallel_size: int = 1
     guided_decoding: bool = True
 
+    # Concurrency/throughput tuning for vLLM's scheduler: max_num_seqs bounds how
+    # many sequences can be decoded concurrently; max_num_batched_tokens bounds how
+    # many tokens (prefill + decode) are packed into one scheduler step. Leave null
+    # to use vLLM's defaults.
+    max_num_seqs: Optional[int] = None
+    max_num_batched_tokens: Optional[int] = None
+
     sampling: SamplingConfig = Field(default_factory=SamplingConfig)
 
     # Candidate retrieval: for each entry in `candidate_kbs`, entities whose type
