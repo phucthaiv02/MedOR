@@ -1,7 +1,7 @@
 # MedOR
 Ontological Reasoning in Medical Knowledge Retrieval
 
-Pipeline fine-tune **Qwen2.5** để trích xuất thực thể y khoa (triệu chứng, chẩn đoán, xét nghiệm, thuốc...) từ văn bản bệnh án tiếng Việt, dùng **Unsloth** để train, **vLLM** để inference, quản lý package bằng **uv**.
+Pipeline fine-tune **Qwen3-8B** để trích xuất thực thể y khoa (triệu chứng, chẩn đoán, xét nghiệm, thuốc...) từ văn bản bệnh án tiếng Việt, dùng **Unsloth** để train, **vLLM** để inference, quản lý package bằng **uv**.
 
 ## 1. Cài đặt
 
@@ -76,7 +76,7 @@ Các trường quan trọng trong `configs/train.yaml`:
 
 | Trường | Ý nghĩa |
 |---|---|
-| `base_model` | Model gốc. Mặc định `unsloth/Qwen2.5-7B-Instruct` (bf16). Chỉ đổi sang bản `-bnb-4bit` nếu GPU ít VRAM (<24GB); trên H100/H200 không cần 4-bit. |
+| `base_model` | Model gốc. Mặc định `unsloth/Qwen3-8B` (bf16). Chỉ đổi sang bản `-bnb-4bit` nếu GPU ít VRAM (<24GB); trên H100/H200 không cần 4-bit. |
 | `load_in_4bit` | `false` khi có đủ VRAM để load bf16 (khuyến nghị trên H100/H200). |
 | `train_csv` / `val_csv` / `val_split` | Nguồn dữ liệu train. Nếu `val_csv: null` thì tự tách `val_split` (mặc định 5%) từ `train_csv`. |
 | `max_seq_length` | Ngưỡng context length (token). Sample có độ dài (prompt+response) ≥ ngưỡng này sẽ bị loại khỏi tập train, log số lượng bị drop ra console. |
@@ -88,8 +88,8 @@ Các trường quan trọng trong `configs/train.yaml`:
 | `push_to_hub`, `hub_model_id`, `hub_private`, `hub_token` | Nếu `push_to_hub: true`, sau khi train xong sẽ push model đã merge lên HF Hub tại `hub_model_id`. **Phải set `hub_model_id`**, nếu không script sẽ báo lỗi ngay từ đầu. Cần `HF_TOKEN` trong `.env` (hoặc set `hub_token`). |
 
 Kết thúc training sẽ có:
-- `outputs/qwen2.5-medor-lora/` — LoRA adapter + tokenizer
-- `outputs/qwen2.5-medor-merged/` — model merge 16-bit, sẵn sàng nạp vào vLLM
+- `outputs/qwen3-medor-lora/` — LoRA adapter + tokenizer
+- `outputs/qwen3-medor-merged/` — model merge 16-bit, sẵn sàng nạp vào vLLM
 
 ## 4. Inference (vLLM)
 
@@ -100,6 +100,7 @@ uv run python -m src.medor.infer_vllm --config configs/infer.yaml
 ```
 
 - **Không dùng prompt/instruction**: model chỉ nhận đúng `input_text` (theo chat template lúc train, không có system prompt), không kèm hướng dẫn hay ví dụ few-shot.
+- **Tắt thinking mode của Qwen3**: cả lúc train (`format_for_training`) và lúc infer đều gọi `apply_chat_template(..., enable_thinking=False)` — task này chỉ cần JSON trực tiếp, không cần khối `<think>...</think>` của Qwen3.
 - **Guided decoding**: bật theo mặc định (`guided_decoding: true`), ép model sinh đúng JSON schema định nghĩa ở [`src/medor/schema.py`](src/medor/schema.py) (mảng object gồm `text`, `type`, `assertions`, `context`).
 - **Tính lại `position`**: model không sinh trực tiếp offset ký tự, thay vào đó output gồm `context` (đoạn văn bản ngắn quanh entity). Sau khi generate, `find_position()` trong [`infer_vllm.py`](src/medor/infer_vllm.py) tính offset qua 2 bước:
   1. Tìm vị trí của `context` trong `input_text`.
@@ -108,7 +109,7 @@ uv run python -m src.medor.infer_vllm --config configs/infer.yaml
   
   Cách này tránh việc `text` bị lặp lại nhiều lần trong văn bản dài dẫn đến bắt sai vị trí (khác với cách tìm `text` trực tiếp trong toàn bộ `input_text`). Entity nào không khớp được `context` hoặc `text` sẽ bị bỏ qua (log số lượng bị drop ra console).
 - File `.json` output cuối cùng gồm `text`, `type`, `assertions`, `position` (không còn `context`, đã được dùng xong để tính position).
-- `merged_model_path` (mặc định trỏ tới `outputs/qwen2.5-medor-merged`) được ưu tiên dùng nếu có sẵn; nếu để `null` thì dùng `base_model` + `lora_path` qua cơ chế LoRA của vLLM.
+- `merged_model_path` (mặc định trỏ tới `outputs/qwen3-medor-merged`) được ưu tiên dùng nếu có sẵn; nếu để `null` thì dùng `base_model` + `lora_path` qua cơ chế LoRA của vLLM.
 - `input_dir` / `output_dir`: đổi sang thư mục dữ liệu thực tế khi chạy inference production (ví dụ một thư mục hồ sơ bệnh án mới), không nhất thiết phải là `data/medor/eval/*`.
 - Nếu model trả về JSON không hợp lệ, file `.json` tương ứng sẽ là mảng rỗng `[]` thay vì crash.
 

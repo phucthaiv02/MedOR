@@ -10,7 +10,7 @@ from .data import format_for_training, load_csv_dataset
 def main():
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Fine-tune Qwen2.5 on MedOR with Unsloth")
+    parser = argparse.ArgumentParser(description="Fine-tune Qwen3 on MedOR with Unsloth")
     parser.add_argument("--config", default="configs/train.yaml")
     args = parser.parse_args()
     cfg: TrainConfig = load_yaml_config(args.config, TrainConfig)
@@ -23,7 +23,6 @@ def main():
 
     from trl import SFTConfig, SFTTrainer
     from unsloth import FastLanguageModel
-    from unsloth.chat_templates import get_chat_template
 
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=cfg.base_model,
@@ -31,10 +30,11 @@ def main():
         load_in_4bit=cfg.load_in_4bit,
         dtype=None,
     )
-    tokenizer = get_chat_template(tokenizer, chat_template="qwen-2.5")
+    # Qwen's own tokenizer_config.json already ships a correct chat_template +
+    # eos_token ("<|im_end|>") — no need for Unsloth's get_chat_template shim,
+    # which is what leaks the unresolved "<EOS_TOKEN>" placeholder on some
+    # unsloth/trl version combos.
     if tokenizer.eos_token not in tokenizer.get_vocab():
-        # Unsloth's get_chat_template can leave eos_token as the unresolved
-        # "<EOS_TOKEN>" placeholder instead of Qwen2.5's actual "<|im_end|>".
         tokenizer.eos_token = "<|im_end|>"
 
     model = FastLanguageModel.get_peft_model(
@@ -60,7 +60,7 @@ def main():
     val_ds = format_for_training(val_raw, tokenizer, cfg.max_seq_length)
     print(f"[INFO] Filtered train/val sizes (context length < {cfg.max_seq_length}): {len(train_ds)}/{len(val_ds)}")
 
-    sft_config = SFTConfig(
+    sft_kwargs = dict(
         output_dir=cfg.output_dir,
         num_train_epochs=cfg.num_train_epochs,
         per_device_train_batch_size=cfg.per_device_train_batch_size,
@@ -83,6 +83,13 @@ def main():
         seed=cfg.seed,
         bf16=True,
     )
+    # Some trl releases default SFTConfig.eos_token to an unresolved
+    # "<EOS_TOKEN>" placeholder instead of deriving it from the tokenizer;
+    # pass it explicitly when the installed trl version supports the field.
+    if "eos_token" in getattr(SFTConfig, "__dataclass_fields__", {}):
+        sft_kwargs["eos_token"] = tokenizer.eos_token
+
+    sft_config = SFTConfig(**sft_kwargs)
 
     trainer = SFTTrainer(
         model=model,

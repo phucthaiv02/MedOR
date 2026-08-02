@@ -15,7 +15,9 @@ def format_for_training(dataset: Dataset, tokenizer, max_seq_length: int) -> Dat
 
     def _to_text(example):
         messages = build_messages(example["input_text"], example["response"])
-        text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+        text = tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=False, enable_thinking=False
+        )
         return {"text": text}
 
     dataset = dataset.map(_to_text, remove_columns=dataset.column_names)

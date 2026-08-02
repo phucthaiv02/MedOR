@@ -1,6 +1,6 @@
-base_model: unsloth/Qwen2.5-7B-Instruct
-lora_path: outputs/qwen2.5-medor-lora
-merged_model_path: outputs/qwen2.5-medor-merged
+base_model: unsloth/Qwen3-8B
+lora_path: outputs/qwen3-medor-lora
+merged_model_path: outputs/qwen3-medor-merged
 
 input_dir: data/medor/eval/txt
 output_dir: outputs/predictions

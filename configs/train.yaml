@@ -1,4 +1,4 @@
-base_model: unsloth/Qwen2.5-7B-Instruct
+base_model: unsloth/Qwen3-8B
 
 train_csv: data/medor/train.csv
 val_csv: null
@@ -21,8 +21,8 @@ lora:
     - up_proj
     - down_proj
 
-output_dir: outputs/qwen2.5-medor-lora
-merged_dir: outputs/qwen2.5-medor-merged
+output_dir: outputs/qwen3-medor-lora
+merged_dir: outputs/qwen3-medor-merged
 
 num_train_epochs: 3
 per_device_train_batch_size: 1
@@ -37,7 +37,7 @@ eval_steps: 200
 packing: false
 
 report_to: wandb
-wandb_project: medor-qwen2.5
+wandb_project: medor-qwen3
 wandb_run_name: null
 
 push_to_hub: false

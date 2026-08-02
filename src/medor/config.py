@@ -21,7 +21,7 @@ class LoraConfig(BaseModel):
 
 
 class TrainConfig(BaseModel):
-    base_model: str = "unsloth/Qwen2.5-7B-Instruct"
+    base_model: str = "unsloth/Qwen3-8B"
 
     train_csv: str = "data/medor/train.csv"
     val_csv: Optional[str] = None
@@ -33,8 +33,8 @@ class TrainConfig(BaseModel):
 
     lora: LoraConfig = Field(default_factory=LoraConfig)
 
-    output_dir: str = "outputs/qwen2.5-medor-lora"
-    merged_dir: str = "outputs/qwen2.5-medor-merged"
+    output_dir: str = "outputs/qwen3-medor-lora"
+    merged_dir: str = "outputs/qwen3-medor-merged"
 
     num_train_epochs: float = 3.0
     per_device_train_batch_size: int = 1
@@ -49,7 +49,7 @@ class TrainConfig(BaseModel):
     packing: bool = False
 
     report_to: str = "wandb"
-    wandb_project: Optional[str] = "medor-qwen2.5"
+    wandb_project: Optional[str] = "medor-qwen3"
     wandb_run_name: Optional[str] = None
 
     push_to_hub: bool = False
@@ -68,9 +68,9 @@ class SamplingConfig(BaseModel):
 
 
 class InferConfig(BaseModel):
-    base_model: str = "unsloth/Qwen2.5-7B-Instruct"
-    lora_path: Optional[str] = "outputs/qwen2.5-medor-lora"
-    merged_model_path: Optional[str] = "outputs/qwen2.5-medor-merged"
+    base_model: str = "unsloth/Qwen3-8B"
+    lora_path: Optional[str] = "outputs/qwen3-medor-lora"
+    merged_model_path: Optional[str] = "outputs/qwen3-medor-merged"
 
     input_dir: str = "data/medor/eval/txt"
     output_dir: str = "outputs/predictions"
