@@ -1,0 +1,16 @@
+base_model: unsloth/Qwen2.5-7B-Instruct
+lora_path: outputs/qwen2.5-medor-lora
+merged_model_path: outputs/qwen2.5-medor-merged
+
+input_dir: data/medor/eval/txt
+output_dir: outputs/predictions
+limit: null
+
+max_model_len: 4096
+gpu_memory_utilization: 0.85
+tensor_parallel_size: 1
+
+sampling:
+  temperature: 0.0
+  top_p: 1.0
+  max_tokens: 2048

@@ -1,0 +1,46 @@
+base_model: unsloth/Qwen2.5-7B-Instruct
+
+train_csv: data/medor/train.csv
+val_csv: null
+val_split: 0.05
+
+max_seq_length: 4000
+load_in_4bit: false
+seed: 42
+
+lora:
+  r: 16
+  lora_alpha: 16
+  lora_dropout: 0.0
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+output_dir: outputs/qwen2.5-medor-lora
+merged_dir: outputs/qwen2.5-medor-merged
+
+num_train_epochs: 3
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 16
+learning_rate: 0.0002
+warmup_ratio: 0.03
+lr_scheduler_type: cosine
+weight_decay: 0.01
+logging_steps: 10
+save_steps: 200
+eval_steps: 200
+packing: false
+
+report_to: wandb
+wandb_project: medor-qwen2.5
+wandb_run_name: null
+
+push_to_hub: false
+hub_model_id: null
+hub_private: true
+hub_token: null

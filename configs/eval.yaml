@@ -1,0 +1,4 @@
+predictions_dir: outputs/predictions
+gold_dir: data/medor/eval/gold
+metrics_output: outputs/eval/metrics.json
+match_mode: text_type

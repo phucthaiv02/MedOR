@@ -1,0 +1,36 @@
+[project]
+name = "medor"
+version = "0.1.0"
+description = "Fine-tune Qwen2.5 for Vietnamese clinical entity extraction on the MedOR dataset"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "datasets>=2.19",
+    "pandas>=2.0",
+    "pyyaml>=6.0",
+    "pydantic>=2.0",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+train = [
+    "torch>=2.4",
+    "transformers>=4.46",
+    "trl>=0.12",
+    "peft>=0.13",
+    "accelerate>=1.0",
+    "bitsandbytes>=0.44",
+    "unsloth",
+    "unsloth_zoo",
+    "wandb>=0.18",
+]
+infer = [
+    "vllm>=0.6",
+    "transformers>=4.46",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/medor"]
