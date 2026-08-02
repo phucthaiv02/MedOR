@@ -58,6 +58,15 @@ def align_entities(input_text, entities):
     return aligned, n_dropped
 
 
+def _write_predictions(txt_paths, all_aligned, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    for path, aligned in zip(txt_paths, all_aligned):
+        stem = os.path.splitext(os.path.basename(path))[0]
+        out_path = os.path.join(output_dir, f"{stem}.json")
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(aligned, f, ensure_ascii=False, indent=2)
+
+
 def load_embedding_model(embedding_model_name):
     """Load the SapBERT model/tokenizer shared across all candidate KBs.
     Import torch/transformers lazily so the module stays importable without
@@ -160,6 +169,8 @@ def main():
         n_dropped_total += n_dropped
         all_aligned.append(aligned)
 
+    _write_predictions(txt_paths, all_aligned, cfg.output_dir)
+
     if cfg.candidate_kbs:
         from .candidates import attach_candidates, embed_texts, load_kb
 
@@ -179,12 +190,7 @@ def main():
                 target_type=kb_cfg.entity_type,
             )
 
-    os.makedirs(cfg.output_dir, exist_ok=True)
-    for path, aligned in zip(txt_paths, all_aligned):
-        stem = os.path.splitext(os.path.basename(path))[0]
-        out_path = os.path.join(cfg.output_dir, f"{stem}.json")
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(aligned, f, ensure_ascii=False, indent=2)
+    _write_predictions(txt_paths, all_aligned, cfg.output_dir)
 
     print(
         f"[INFO] Wrote {len(outputs)} predictions to {cfg.output_dir} "
