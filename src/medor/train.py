@@ -21,8 +21,8 @@ def main():
     if "wandb" in cfg.report_to and cfg.wandb_project:
         os.environ.setdefault("WANDB_PROJECT", cfg.wandb_project)
 
-    from trl import SFTConfig, SFTTrainer
     from unsloth import FastLanguageModel
+    from trl import SFTConfig, SFTTrainer
 
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=cfg.base_model,
@@ -49,6 +49,10 @@ def main():
     )
 
     full_train = load_csv_dataset(cfg.train_csv)
+    if cfg.train_sample_limit:
+        full_train = full_train.select(range(min(cfg.train_sample_limit, len(full_train))))
+        print(f"[INFO] train_sample_limit set: using {len(full_train)} samples from train_csv")
+
     if cfg.val_csv:
         train_raw, val_raw = full_train, load_csv_dataset(cfg.val_csv)
     else:
@@ -72,6 +76,7 @@ def main():
         weight_decay=cfg.weight_decay,
         logging_steps=cfg.logging_steps,
         save_steps=cfg.save_steps,
+        save_total_limit=cfg.save_total_limit,
         eval_strategy="steps",
         eval_steps=cfg.eval_steps,
         save_strategy="steps",
@@ -83,6 +88,18 @@ def main():
         seed=cfg.seed,
         bf16=True,
     )
+    if cfg.push_to_hub:
+        # Push every training checkpoint to the "main" branch of hub_model_id
+        # as it's saved; the final merged model goes to its own branch below
+        # so it doesn't get mixed in with raw LoRA checkpoints.
+        sft_kwargs.update(
+            push_to_hub=True,
+            hub_model_id=cfg.hub_model_id,
+            hub_strategy=cfg.hub_strategy,
+            hub_private_repo=cfg.hub_private,
+            hub_token=cfg.hub_token,
+        )
+
     # Some trl releases default SFTConfig.eos_token to an unresolved
     # "<EOS_TOKEN>" placeholder instead of deriving it from the tokenizer;
     # pass it explicitly when the installed trl version supports the field.
@@ -108,14 +125,22 @@ def main():
     print(f"[INFO] Full merged model saved to {cfg.merged_dir} (ready for vLLM: model={cfg.merged_dir})")
 
     if cfg.push_to_hub:
+        from huggingface_hub import create_branch, create_repo
+
+        create_repo(cfg.hub_model_id, private=cfg.hub_private, token=cfg.hub_token, exist_ok=True)
+        create_branch(cfg.hub_model_id, branch=cfg.hub_merged_branch, token=cfg.hub_token, exist_ok=True)
         model.push_to_hub_merged(
             cfg.hub_model_id,
             tokenizer,
             save_method="merged_16bit",
             private=cfg.hub_private,
             token=cfg.hub_token,
+            revision=cfg.hub_merged_branch,
         )
-        print(f"[INFO] Pushed merged model to https://huggingface.co/{cfg.hub_model_id}")
+        print(
+            f"[INFO] Pushed merged model to https://huggingface.co/{cfg.hub_model_id}/tree/{cfg.hub_merged_branch} "
+            f"(checkpoints during training went to the default branch)"
+        )
 
 
 if __name__ == "__main__":

@@ -1,16 +1,17 @@
 base_model: unsloth/Qwen3-8B
 
-train_csv: data/medor/train.csv
+train_csv: datasets/train.csv
 val_csv: null
 val_split: 0.05
+train_sample_limit: null  # đặt số nguyên để chỉ train trên tập con (thử nghiệm nhanh); null = dùng toàn bộ
 
-max_seq_length: 4000
+max_seq_length: 4096
 load_in_4bit: false
 seed: 42
 
 lora:
-  r: 16
-  lora_alpha: 16
+  r: 32
+  lora_alpha: 32
   lora_dropout: 0.0
   target_modules:
     - q_proj
@@ -33,6 +34,7 @@ lr_scheduler_type: cosine
 weight_decay: 0.01
 logging_steps: 10
 save_steps: 200
+save_total_limit: 5
 eval_steps: 200
 packing: false
 
@@ -40,7 +42,9 @@ report_to: wandb
 wandb_project: medor-qwen3
 wandb_run_name: null
 
-push_to_hub: false
-hub_model_id: null
-hub_private: true
+push_to_hub: true
+hub_model_id: phucthaiv02/medor-qwen3-lora
+hub_private: false
 hub_token: null
+hub_strategy: all_checkpoints  # push từng checkpoint lên nhánh mặc định (main) trong lúc train
+hub_merged_branch: merged      # model merge cuối cùng push lên nhánh riêng, tách khỏi các checkpoint

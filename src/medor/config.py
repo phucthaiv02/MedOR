@@ -26,6 +26,7 @@ class TrainConfig(BaseModel):
     train_csv: str = "data/medor/train.csv"
     val_csv: Optional[str] = None
     val_split: float = 0.05
+    train_sample_limit: Optional[int] = None
 
     max_seq_length: int = 4000
     load_in_4bit: bool = False
@@ -45,6 +46,7 @@ class TrainConfig(BaseModel):
     weight_decay: float = 0.01
     logging_steps: int = 10
     save_steps: int = 200
+    save_total_limit: int = 5
     eval_steps: int = 200
     packing: bool = False
 
@@ -56,6 +58,8 @@ class TrainConfig(BaseModel):
     hub_model_id: Optional[str] = None
     hub_private: bool = True
     hub_token: Optional[str] = None
+    hub_strategy: str = "all_checkpoints"
+    hub_merged_branch: str = "merged"
 
 
 class SamplingConfig(BaseModel):
