@@ -5,9 +5,30 @@ Pipeline fine-tune **Qwen2.5** để trích xuất thực thể y khoa (triệu 
 
 ## 1. Cài đặt
 
-Project dùng `uv`, Python 3.12 (khai báo ở `.python-version`).
+Project dùng [`uv`](https://docs.astral.sh/uv/) để quản lý package và virtualenv, Python 3.12 (khai báo ở `.python-version`, `uv` sẽ tự tải nếu máy chưa có).
+
+### 1.1. Cài `uv`
 
 ```bash
+# Linux / macOS
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# hoặc qua pip nếu đã có Python
+pip install uv
+```
+
+Kiểm tra:
+
+```bash
+uv --version
+```
+
+### 1.2. Cài dependencies của project
+
+```bash
+git clone https://github.com/phucthaiv02/MedOR
+cd MedOR
+
 # Chỉ các phụ thuộc cơ bản (pandas, datasets, pydantic, dotenv...)
 uv sync
 
@@ -17,6 +38,10 @@ uv sync --extra train
 # Máy dùng để INFERENCE (cần GPU, cài thêm vllm)
 uv sync --extra infer
 ```
+
+`uv sync` tự tạo virtualenv tại `.venv/` và cài đúng version đã khoá trong `uv.lock`. Mọi lệnh chạy script trong README này đều qua `uv run ...` — không cần tự `activate` venv.
+
+### 1.3. Cấu hình secrets (`.env`)
 
 Tạo file `.env` ở gốc repo (đã có sẵn, đã gitignore) để chứa secrets:
 

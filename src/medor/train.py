@@ -32,6 +32,10 @@ def main():
         dtype=None,
     )
     tokenizer = get_chat_template(tokenizer, chat_template="qwen-2.5")
+    if tokenizer.eos_token not in tokenizer.get_vocab():
+        # Unsloth's get_chat_template can leave eos_token as the unresolved
+        # "<EOS_TOKEN>" placeholder instead of Qwen2.5's actual "<|im_end|>".
+        tokenizer.eos_token = "<|im_end|>"
 
     model = FastLanguageModel.get_peft_model(
         model,
