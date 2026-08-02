@@ -58,17 +58,6 @@ def align_entities(input_text, entities):
     return aligned, n_dropped
 
 
-def _lora_rank(lora_path, default=16):
-    """Read the LoRA rank `r` used at train time from adapter_config.json, so
-    vLLM's max_lora_rank always matches instead of silently defaulting to 16
-    (which errors out for any adapter trained with a higher rank, e.g. r=32)."""
-    config_path = os.path.join(lora_path, "adapter_config.json")
-    if not os.path.exists(config_path):
-        return default
-    with open(config_path, "r", encoding="utf-8") as f:
-        return json.load(f).get("r", default)
-
-
 def load_embedding_model(embedding_model_name):
     """Load the SapBERT model/tokenizer shared across all candidate KBs.
     Import torch/transformers lazily so the module stays importable without
@@ -111,7 +100,7 @@ def main():
     lora_request = None
     if cfg.lora_path and not cfg.merged_model_path:
         llm_kwargs["enable_lora"] = True
-        llm_kwargs["max_lora_rank"] = _lora_rank(cfg.lora_path)
+        llm_kwargs["max_lora_rank"] = cfg.max_lora_rank
         lora_request = LoRARequest("medor-lora", 1, cfg.lora_path)
 
     llm = LLM(**llm_kwargs)

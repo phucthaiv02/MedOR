@@ -17,6 +17,12 @@ guided_decoding: true
 max_num_seqs: 256
 max_num_batched_tokens: null
 
+# LoRA rank passed to vLLM's max_lora_rank. Must match (or exceed) lora.r in
+# configs/train.yaml (currently 32), else vLLM errors with "LoRA rank X is
+# greater than max_lora_rank Y". Must be one of vLLM's supported values:
+# 8, 16, 32, 64, 128, 256.
+max_lora_rank: 32
+
 sampling:
   temperature: 0.0
   top_p: 1.0

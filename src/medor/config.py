@@ -97,6 +97,12 @@ class InferConfig(BaseModel):
     max_num_seqs: Optional[int] = None
     max_num_batched_tokens: Optional[int] = None
 
+    # LoRA rank passed to vLLM's max_lora_rank. Must match (or exceed) the `r`
+    # the adapter was trained with (see lora.r in configs/train.yaml), else
+    # vLLM raises "LoRA rank X is greater than max_lora_rank Y". Must be one
+    # of vLLM's supported values: 8, 16, 32, 64, 128, 256.
+    max_lora_rank: int = 32
+
     sampling: SamplingConfig = Field(default_factory=SamplingConfig)
 
     # Candidate retrieval: for each entry in `candidate_kbs`, entities whose type
