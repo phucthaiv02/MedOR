@@ -30,12 +30,6 @@ def main():
         load_in_4bit=cfg.load_in_4bit,
         dtype=None,
     )
-    # Qwen's own tokenizer_config.json already ships a correct chat_template +
-    # eos_token ("<|im_end|>") — no need for Unsloth's get_chat_template shim,
-    # which is what leaks the unresolved "<EOS_TOKEN>" placeholder on some
-    # unsloth/trl version combos.
-    if tokenizer.eos_token not in tokenizer.get_vocab():
-        tokenizer.eos_token = "<|im_end|>"
 
     model = FastLanguageModel.get_peft_model(
         model,
@@ -99,12 +93,6 @@ def main():
             hub_private_repo=cfg.hub_private,
             hub_token=cfg.hub_token,
         )
-
-    # Some trl releases default SFTConfig.eos_token to an unresolved
-    # "<EOS_TOKEN>" placeholder instead of deriving it from the tokenizer;
-    # pass it explicitly when the installed trl version supports the field.
-    if "eos_token" in getattr(SFTConfig, "__dataclass_fields__", {}):
-        sft_kwargs["eos_token"] = tokenizer.eos_token
 
     sft_config = SFTConfig(**sft_kwargs)
 
