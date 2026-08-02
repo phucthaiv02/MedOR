@@ -62,6 +62,9 @@ class SamplingConfig(BaseModel):
     temperature: float = 0.0
     top_p: float = 1.0
     max_tokens: int = 2048
+    repetition_penalty: float = 1.05
+    frequency_penalty: float = 0.1
+    stop: List[str] = Field(default_factory=lambda: ["<|im_end|>", "<|endoftext|>"])
 
 
 class InferConfig(BaseModel):
@@ -76,6 +79,7 @@ class InferConfig(BaseModel):
     max_model_len: int = 4096
     gpu_memory_utilization: float = 0.85
     tensor_parallel_size: int = 1
+    guided_decoding: bool = True
 
     sampling: SamplingConfig = Field(default_factory=SamplingConfig)
 

@@ -74,9 +74,18 @@ Cấu hình ở [`configs/infer.yaml`](configs/infer.yaml). Input là một **th
 uv run python -m src.medor.infer_vllm --config configs/infer.yaml
 ```
 
+- **Không dùng prompt/instruction**: model chỉ nhận đúng `input_text` (theo chat template lúc train, không có system prompt), không kèm hướng dẫn hay ví dụ few-shot.
+- **Guided decoding**: bật theo mặc định (`guided_decoding: true`), ép model sinh đúng JSON schema định nghĩa ở [`src/medor/schema.py`](src/medor/schema.py) (mảng object gồm `text`, `type`, `assertions`, `context`).
+- **Tính lại `position`**: model không sinh trực tiếp offset ký tự, thay vào đó output gồm `context` (đoạn văn bản ngắn quanh entity). Sau khi generate, `find_position()` trong [`infer_vllm.py`](src/medor/infer_vllm.py) tính offset qua 2 bước:
+  1. Tìm vị trí của `context` trong `input_text`.
+  2. Tìm vị trí của `text` trong `context` đó.
+  3. Cộng dồn để ra offset cuối cùng của `text` trong `input_text`.
+  
+  Cách này tránh việc `text` bị lặp lại nhiều lần trong văn bản dài dẫn đến bắt sai vị trí (khác với cách tìm `text` trực tiếp trong toàn bộ `input_text`). Entity nào không khớp được `context` hoặc `text` sẽ bị bỏ qua (log số lượng bị drop ra console).
+- File `.json` output cuối cùng gồm `text`, `type`, `assertions`, `position` (không còn `context`, đã được dùng xong để tính position).
 - `merged_model_path` (mặc định trỏ tới `outputs/qwen2.5-medor-merged`) được ưu tiên dùng nếu có sẵn; nếu để `null` thì dùng `base_model` + `lora_path` qua cơ chế LoRA của vLLM.
 - `input_dir` / `output_dir`: đổi sang thư mục dữ liệu thực tế khi chạy inference production (ví dụ một thư mục hồ sơ bệnh án mới), không nhất thiết phải là `data/medor/eval/*`.
-- Nếu model trả về JSON không hợp lệ, file `.json` tương ứng sẽ chứa `{"error": "invalid_json", "raw_output": ...}` thay vì bị bỏ qua.
+- Nếu model trả về JSON không hợp lệ, file `.json` tương ứng sẽ là mảng rỗng `[]` thay vì crash.
 
 ## 5. Đánh giá
 
