@@ -74,6 +74,9 @@ def main():
         eval_strategy="steps",
         eval_steps=cfg.eval_steps,
         save_strategy="steps",
+        load_best_model_at_end=True,
+        metric_for_best_model="eval_loss",
+        greater_is_better=False,
         max_length=cfg.max_seq_length,
         packing=cfg.packing,
         dataset_text_field="text",
@@ -107,7 +110,7 @@ def main():
 
     model.save_pretrained(cfg.output_dir)
     tokenizer.save_pretrained(cfg.output_dir)
-    print(f"[INFO] LoRA adapter saved to {cfg.output_dir}")
+    print(f"[INFO] Best LoRA adapter (by eval_loss) saved to {cfg.output_dir}")
 
     model.save_pretrained_merged(cfg.merged_dir, tokenizer, save_method="merged_16bit")
     print(f"[INFO] Full merged model saved to {cfg.merged_dir} (ready for vLLM: model={cfg.merged_dir})")

@@ -1,11 +1,11 @@
 base_model: unsloth/Qwen3-8B
 
 train_csv: datasets/train.csv
-val_csv: null
+val_csv: datasets/test.csv
 val_split: 0.05
 train_sample_limit: null  # đặt số nguyên để chỉ train trên tập con (thử nghiệm nhanh); null = dùng toàn bộ
 
-max_seq_length: 4096
+max_seq_length: 2048
 load_in_4bit: false
 seed: 42
 
@@ -26,16 +26,16 @@ output_dir: outputs/qwen3-medor-lora
 merged_dir: outputs/qwen3-medor-merged
 
 num_train_epochs: 3
-per_device_train_batch_size: 1
-gradient_accumulation_steps: 16
+per_device_train_batch_size: 64
+gradient_accumulation_steps: 1
 learning_rate: 0.0002
 warmup_ratio: 0.03
 lr_scheduler_type: cosine
 weight_decay: 0.01
 logging_steps: 10
-save_steps: 200
+save_steps: 100
 save_total_limit: 5
-eval_steps: 200
+eval_steps: 100
 packing: false
 
 report_to: wandb
