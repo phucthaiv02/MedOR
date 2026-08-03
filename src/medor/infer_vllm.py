@@ -43,30 +43,28 @@ def _normalize_whitespace(text):
     return "".join(out), index_map
 
 
-def find_position(norm_input, index_map, context, text):
-    """Locate `text` inside the original text behind (`norm_input`, `index_map`)
-    via its `context`: first find where context sits in norm_input, then find
-    text's offset within that context, then translate back to a global
-    [start, end] offset in the original text. Matching is whitespace-insensitive
-    (any run of spaces/newlines collapses to one space) since the model doesn't
-    always reproduce the input's exact newlines verbatim in `context`/`text`."""
-    context = (context or "").strip()
+def find_position(norm_input, index_map, text, occurrence):
+    """Locate the `occurrence`-th (0-indexed) match of `text` inside the
+    original text behind (`norm_input`, `index_map`), then translate it back
+    to a global [start, end] offset in the original text. Matching is
+    whitespace-insensitive (any run of spaces/newlines collapses to one
+    space) since the model doesn't always reproduce the input's exact
+    newlines verbatim in `text`."""
     text = (text or "").strip()
     if not text:
         return None
 
-    norm_context = _WHITESPACE_RE.sub(" ", context)
     norm_text = _WHITESPACE_RE.sub(" ", text)
-
-    ctx_start = norm_input.find(norm_context) if norm_context else -1
-    if ctx_start == -1:
+    if not norm_text:
         return None
 
-    local_start = norm_context.find(norm_text)
-    if local_start == -1:
-        return None
+    norm_start, search_from = -1, 0
+    for _ in range(occurrence + 1):
+        norm_start = norm_input.find(norm_text, search_from)
+        if norm_start == -1:
+            return None
+        search_from = norm_start + 1
 
-    norm_start = ctx_start + local_start
     norm_end = norm_start + len(norm_text)
     if norm_end > len(index_map):
         return None
@@ -77,16 +75,26 @@ def find_position(norm_input, index_map, context, text):
 
 
 def align_entities(input_text, entities):
+    """Align each entity's `text` to a [start, end] offset in `input_text`.
+    Entities are assumed to be emitted in the same left-to-right order they
+    appear in the document (true of the current training data), so repeated
+    mentions of the same text are matched to successive occurrences in that
+    order via a per-text counter, without needing a `context` field."""
     aligned = []
     n_dropped = 0
     norm_input, index_map = _normalize_whitespace(input_text)
+    seen_counts = {}
     for ent in entities:
-        position = find_position(norm_input, index_map, ent.get("context", ""), ent.get("text", ""))
+        text = (ent.get("text") or "").strip()
+        norm_text = _WHITESPACE_RE.sub(" ", text)
+        occurrence = seen_counts.get(norm_text, 0)
+        position = find_position(norm_input, index_map, text, occurrence)
         if position is None:
             n_dropped += 1
             continue
+        seen_counts[norm_text] = occurrence + 1
         aligned.append({
-            "text": ent["text"].strip(),
+            "text": text,
             "type": ent.get("type", ""),
             "assertions": ent.get("assertions", []),
             "position": position,

@@ -22,7 +22,6 @@ class MedicalTerm(BaseModel):
     text: str = Field(description="Chuỗi trích xuất nguyên văn của thực thể, phải khớp chính xác một đoạn con trong văn bản đầu vào.")
     type: MedicalTermType = Field(description="Loại thực thể y khoa: triệu chứng, chẩn đoán, xét nghiệm, kết quả xét nghiệm, hoặc thuốc.")
     assertions: List[Assertion] = Field(description="Các assertion áp dụng cho thực thể (phủ định, tiền sử gia đình, tiền sử bệnh nhân); để trống nếu không có.")
-    context: str = Field(description="Đoạn văn bản ngắn (vài từ trước/sau) bao quanh `text` trong văn bản gốc, dùng để xác định đúng vị trí khi `text` xuất hiện nhiều lần.")
 
 
 def entity_list_json_schema() -> dict:
