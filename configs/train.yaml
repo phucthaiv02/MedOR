@@ -22,6 +22,15 @@ lora:
     - up_proj
     - down_proj
 
+# Generation-based eval: runs actual decoding (not just teacher-forced loss) on a slice
+# of the val set every eval_steps, logging eval_precision/recall/f1/exact_match/wer/assertion_accuracy.
+generation_eval:
+  enabled: true
+  max_samples: 50  # null = full val set (slower); raise for a more reliable signal
+  max_new_tokens: 2048
+  batch_size: 8
+  match_mode: text_type
+
 output_dir: outputs/qwen3-medor-lora
 merged_dir: outputs/qwen3-medor-merged
 

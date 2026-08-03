@@ -2,12 +2,15 @@ import argparse
 import glob
 import json
 import os
+import re
 
 from dotenv import load_dotenv
 
 from .config import InferConfig, load_yaml_config
 from .prompts import build_messages
 from .schema import entity_list_json_schema
+
+_WHITESPACE_RE = re.compile(r"\s+")
 
 
 def _sorted_txt_files(input_dir):
@@ -20,32 +23,65 @@ def _sorted_txt_files(input_dir):
     return sorted(paths, key=sort_key)
 
 
-def find_position(input_text, context, text):
-    """Locate `text` inside `input_text` via its `context`: first find where
-    context sits in input_text, then find text's offset within that context,
-    then translate to a global [start, end] offset in input_text."""
+def _normalize_whitespace(text):
+    """Collapse every run of whitespace (including newlines) in `text` down
+    to a single space, returning the normalized string plus a list mapping
+    each of its indices back to the matching index in the original `text`."""
+    out = []
+    index_map = []
+    i, n = 0, len(text)
+    while i < n:
+        if text[i].isspace():
+            out.append(" ")
+            index_map.append(i)
+            while i < n and text[i].isspace():
+                i += 1
+        else:
+            out.append(text[i])
+            index_map.append(i)
+            i += 1
+    return "".join(out), index_map
+
+
+def find_position(norm_input, index_map, context, text):
+    """Locate `text` inside the original text behind (`norm_input`, `index_map`)
+    via its `context`: first find where context sits in norm_input, then find
+    text's offset within that context, then translate back to a global
+    [start, end] offset in the original text. Matching is whitespace-insensitive
+    (any run of spaces/newlines collapses to one space) since the model doesn't
+    always reproduce the input's exact newlines verbatim in `context`/`text`."""
     context = (context or "").strip()
     text = (text or "").strip()
     if not text:
         return None
 
-    ctx_start = input_text.find(context) if context else -1
+    norm_context = _WHITESPACE_RE.sub(" ", context)
+    norm_text = _WHITESPACE_RE.sub(" ", text)
+
+    ctx_start = norm_input.find(norm_context) if norm_context else -1
     if ctx_start == -1:
         return None
 
-    local_start = context.find(text)
+    local_start = norm_context.find(norm_text)
     if local_start == -1:
         return None
 
-    start = ctx_start + local_start
-    return [start, start + len(text)]
+    norm_start = ctx_start + local_start
+    norm_end = norm_start + len(norm_text)
+    if norm_end > len(index_map):
+        return None
+
+    start = index_map[norm_start]
+    end = index_map[norm_end - 1] + 1
+    return [start, end]
 
 
 def align_entities(input_text, entities):
     aligned = []
     n_dropped = 0
+    norm_input, index_map = _normalize_whitespace(input_text)
     for ent in entities:
-        position = find_position(input_text, ent.get("context", ""), ent.get("text", ""))
+        position = find_position(norm_input, index_map, ent.get("context", ""), ent.get("text", ""))
         if position is None:
             n_dropped += 1
             continue
@@ -65,6 +101,19 @@ def _write_predictions(txt_paths, all_aligned, output_dir):
         out_path = os.path.join(output_dir, f"{stem}.json")
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(aligned, f, ensure_ascii=False, indent=2)
+
+
+def _write_raw_predictions(txt_paths, raw_outputs, output_dir):
+    """Dump each prompt's unparsed model output verbatim, so a `[]` in the
+    aligned predictions can be traced back to what the model actually
+    generated (empty array vs. invalid/truncated JSON vs. failed alignment)."""
+    raw_dir = os.path.join(output_dir, "raw")
+    os.makedirs(raw_dir, exist_ok=True)
+    for path, raw in zip(txt_paths, raw_outputs):
+        stem = os.path.splitext(os.path.basename(path))[0]
+        out_path = os.path.join(raw_dir, f"{stem}.txt")
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(raw)
 
 
 def load_embedding_model(embedding_model_name):
@@ -153,8 +202,10 @@ def main():
     n_invalid = 0
     n_dropped_total = 0
     all_aligned = []
+    raw_outputs = []
     for text, out in zip(texts, outputs):
         raw_output = out.outputs[0].text.strip()
+        raw_outputs.append(raw_output)
         try:
             entities = json.loads(raw_output)
             if not isinstance(entities, list):
@@ -168,6 +219,7 @@ def main():
         all_aligned.append(aligned)
 
     _write_predictions(txt_paths, all_aligned, cfg.output_dir)
+    _write_raw_predictions(txt_paths, raw_outputs, cfg.output_dir)
 
     if cfg.candidate_kbs:
         from .candidates import attach_candidates, embed_texts, load_kb

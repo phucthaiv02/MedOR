@@ -20,6 +20,16 @@ class LoraConfig(BaseModel):
     ])
 
 
+class GenerationEvalConfig(BaseModel):
+    # Runs real generation (not just teacher-forced loss) on a slice of the val set at
+    # every eval_steps, and logs eval_precision/recall/f1/exact_match/wer/assertion_accuracy.
+    enabled: bool = True
+    max_samples: Optional[int] = 50  # null = use the full val set (slower)
+    max_new_tokens: int = 2048
+    batch_size: int = 8
+    match_mode: str = "text_type"  # or "text_type_assertions"; see EvalConfig.match_mode
+
+
 class TrainConfig(BaseModel):
     base_model: str = "unsloth/Qwen3-8B"
 
@@ -33,6 +43,7 @@ class TrainConfig(BaseModel):
     seed: int = 42
 
     lora: LoraConfig = Field(default_factory=LoraConfig)
+    generation_eval: GenerationEvalConfig = Field(default_factory=GenerationEvalConfig)
 
     output_dir: str = "outputs/qwen3-medor-lora"
     merged_dir: str = "outputs/qwen3-medor-merged"

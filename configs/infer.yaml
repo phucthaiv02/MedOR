@@ -9,7 +9,7 @@ limit: null
 max_model_len: 4096
 gpu_memory_utilization: 0.85
 tensor_parallel_size: 1
-guided_decoding: true
+guided_decoding: false
 
 # Concurrency tuning: raise these to let vLLM run more samples at once on the
 # GPU (bounded by KV-cache capacity from gpu_memory_utilization/max_model_len).
@@ -27,8 +27,8 @@ sampling:
   temperature: 0.0
   top_p: 1.0
   max_tokens: 2048
-  repetition_penalty: 1.05
-  frequency_penalty: 0.1
+  repetition_penalty: 1.0
+  frequency_penalty: 0.0
   stop:
     - "<|im_end|>"
     - "<|endoftext|>"

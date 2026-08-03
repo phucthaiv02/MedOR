@@ -1,7 +1,7 @@
 import pandas as pd
 from datasets import Dataset
 
-from .prompts import build_messages
+from .prompts import build_prompt_completion
 
 
 def load_csv_dataset(path: str) -> Dataset:
@@ -10,21 +10,23 @@ def load_csv_dataset(path: str) -> Dataset:
 
 
 def format_for_training(dataset: Dataset, tokenizer, max_seq_length: int) -> Dataset:
-    """Render each example as a chat-formatted string and drop samples whose
-    token length is not strictly below max_seq_length."""
+    """Render each example as a TRL prompt/completion message pair (system+user vs.
+    assistant JSON) so SFTTrainer's completion_only_loss computes the training loss
+    only on the JSON response, not the system instruction or input document. Drops
+    samples whose full (prompt+completion) token length is not strictly below
+    max_seq_length."""
 
-    def _to_text(example):
-        messages = build_messages(example["input_text"], example["response"])
-        text = tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=False, enable_thinking=False
-        )
-        return {"text": text}
+    def _to_prompt_completion(example):
+        prompt, completion = build_prompt_completion(example["input_text"], example["response"])
+        return {"prompt": prompt, "completion": completion, "chat_template_kwargs": {"enable_thinking": False}}
 
-    dataset = dataset.map(_to_text, remove_columns=dataset.column_names)
+    dataset = dataset.map(_to_prompt_completion, remove_columns=dataset.column_names)
 
     def _under_max_length(example):
-        n_tokens = len(tokenizer(example["text"], add_special_tokens=False)["input_ids"])
-        return n_tokens < max_seq_length
+        full_ids = tokenizer.apply_chat_template(
+            example["prompt"] + example["completion"], tokenize=True, enable_thinking=False
+        )
+        return len(full_ids) < max_seq_length
 
     before = len(dataset)
     dataset = dataset.filter(_under_max_length)

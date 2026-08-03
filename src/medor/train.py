@@ -79,7 +79,7 @@ def main():
         greater_is_better=False,
         max_length=cfg.max_seq_length,
         packing=cfg.packing,
-        dataset_text_field="text",
+        completion_only_loss=True,
         report_to=cfg.report_to,
         run_name=cfg.wandb_run_name,
         seed=cfg.seed,
@@ -106,6 +106,22 @@ def main():
         eval_dataset=val_ds,
         args=sft_config,
     )
+
+    if cfg.generation_eval.enabled:
+        from .callbacks import GenerationEvalCallback
+
+        gen_eval_callback = GenerationEvalCallback(
+            model=model,
+            tokenizer=tokenizer,
+            val_raw=val_raw,
+            max_samples=cfg.generation_eval.max_samples,
+            max_new_tokens=cfg.generation_eval.max_new_tokens,
+            match_mode=cfg.generation_eval.match_mode,
+            batch_size=cfg.generation_eval.batch_size,
+        )
+        gen_eval_callback.trainer = trainer
+        trainer.add_callback(gen_eval_callback)
+
     trainer.train()
 
     model.save_pretrained(cfg.output_dir)

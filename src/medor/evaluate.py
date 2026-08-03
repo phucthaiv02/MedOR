@@ -4,32 +4,19 @@ import json
 import os
 
 from .config import EvalConfig, load_yaml_config
+from .metrics import (
+    assertion_accuracy,
+    exact_match,
+    match_by_text_type,
+    precision_recall_f1,
+    score,
+)
 
 
 def load_entities(path):
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     return data if isinstance(data, list) else None
-
-
-def entity_key(entity, mode):
-    text = str(entity.get("text", "")).strip().lower()
-    etype = str(entity.get("type", "")).strip()
-    if mode == "text_type_assertions":
-        return (text, etype, tuple(sorted(entity.get("assertions", []) or [])))
-    return (text, etype)
-
-
-def score(gold_list, pred_list, mode):
-    gold_keys = [entity_key(e, mode) for e in gold_list]
-    pred_keys = [entity_key(e, mode) for e in pred_list]
-    remaining = list(gold_keys)
-    tp = 0
-    for k in pred_keys:
-        if k in remaining:
-            remaining.remove(k)
-            tp += 1
-    return tp, len(pred_keys) - tp, len(remaining)
 
 
 def main():
@@ -43,6 +30,7 @@ def main():
         raise FileNotFoundError(f"No gold .json files found in {cfg.gold_dir}")
 
     total_tp = total_fp = total_fn = 0
+    total_exact = total_assertion_correct = total_matched = 0
     n_examples = n_invalid_json = n_missing_pred = 0
 
     for gold_path in gold_paths:
@@ -65,18 +53,19 @@ def main():
         total_tp += tp
         total_fp += fp
         total_fn += fn
+        total_exact += int(exact_match(gold, pred, cfg.match_mode))
 
-    precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) else 0.0
-    recall = total_tp / (total_tp + total_fn) if (total_tp + total_fn) else 0.0
-    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+        correct, matched = assertion_accuracy(match_by_text_type(gold, pred))
+        total_assertion_correct += correct
+        total_matched += matched
 
     metrics = {
         "n_examples": n_examples,
         "n_missing_predictions": n_missing_pred,
         "invalid_json_rate": n_invalid_json / n_examples if n_examples else 0.0,
-        "precision": precision,
-        "recall": recall,
-        "f1": f1,
+        **precision_recall_f1(total_tp, total_fp, total_fn),
+        "exact_match": total_exact / n_examples if n_examples else 0.0,
+        "assertion_accuracy": total_assertion_correct / total_matched if total_matched else 0.0,
         "match_mode": cfg.match_mode,
     }
 
