@@ -126,8 +126,6 @@ def main():
         with open(path, "r", encoding="utf-8") as f:
             texts.append(f.read())
 
-    # Không dùng system prompt / hướng dẫn: model đã được fine-tune để map
-    # thẳng input_text -> JSON, chỉ cần dựng lại đúng chat template lúc train.
     prompts = [
         tokenizer.apply_chat_template(
             build_messages(text), tokenize=False, add_generation_prompt=True, enable_thinking=False
