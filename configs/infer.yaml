@@ -1,6 +1,8 @@
-base_model: unsloth/Qwen3-8B
-lora_path: outputs/qwen3-medor-lora
-merged_model_path: outputs/qwen3-medor-merged
+# base_model is also loaded fresh (no lora/merge) for the type-classification
+# step, so it must stay the original, non-fine-tuned checkpoint.
+base_model: unsloth/Qwen3-4B
+lora_path: outputs/qwen3-4b-medor-lora
+merged_model_path: outputs/qwen3-4b-medor-merged
 
 input_dir: datasets/test
 output_dir: outputs/predictions

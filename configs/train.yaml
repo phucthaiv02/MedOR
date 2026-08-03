@@ -1,4 +1,4 @@
-base_model: unsloth/Qwen3-8B
+base_model: unsloth/Qwen3-4B
 
 train_csv: datasets/train.csv
 val_csv: datasets/test.csv
@@ -31,8 +31,8 @@ generation_eval:
   batch_size: 8
   match_mode: text_type
 
-output_dir: outputs/qwen3-medor-lora
-merged_dir: outputs/qwen3-medor-merged
+output_dir: outputs/qwen3-4b-medor-lora
+merged_dir: outputs/qwen3-4b-medor-merged
 
 num_train_epochs: 3
 per_device_train_batch_size: 64
@@ -52,7 +52,7 @@ wandb_project: medor-qwen3
 wandb_run_name: null
 
 push_to_hub: true
-hub_model_id: phucthaiv02/medor-qwen3-lora
+hub_model_id: phucthaiv02/medor-qwen3-4b-lora
 hub_private: false
 hub_token: null
 hub_strategy: all_checkpoints  # push từng checkpoint lên nhánh mặc định (main) trong lúc train

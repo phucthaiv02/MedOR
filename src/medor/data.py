@@ -1,6 +1,7 @@
 import pandas as pd
 from datasets import Dataset
 
+from .metrics import strip_entity_fields
 from .prompts import build_prompt_completion
 
 
@@ -17,7 +18,8 @@ def format_for_training(dataset: Dataset, tokenizer, max_seq_length: int) -> Dat
     max_seq_length."""
 
     def _to_prompt_completion(example):
-        prompt, completion = build_prompt_completion(example["input_text"], example["response"])
+        response = strip_entity_fields(example["response"])
+        prompt, completion = build_prompt_completion(example["input_text"], response)
         return {"prompt": prompt, "completion": completion, "chat_template_kwargs": {"enable_thinking": False}}
 
     dataset = dataset.map(_to_prompt_completion, remove_columns=dataset.column_names)

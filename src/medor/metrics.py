@@ -11,6 +11,18 @@ def parse_entities(text):
     return data if isinstance(data, list) else None
 
 
+def strip_entity_fields(text, drop_fields=("type", "context")):
+    """Re-serialize a JSON entity array with `drop_fields` removed from each
+    entity. Used to normalize a raw gold/response string to the shape the
+    extraction model is actually trained to produce (text + assertions only,
+    since type is now assigned by a separate classification step)."""
+    entities = parse_entities(text)
+    if entities is None:
+        return text
+    stripped = [{k: v for k, v in ent.items() if k not in drop_fields} for ent in entities]
+    return json.dumps(stripped, ensure_ascii=False)
+
+
 def entity_key(entity, mode="text_type"):
     text = str(entity.get("text", "")).strip().lower()
     etype = str(entity.get("type", "")).strip()

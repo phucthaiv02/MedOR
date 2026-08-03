@@ -7,6 +7,7 @@ from .metrics import (
     parse_entities,
     precision_recall_f1,
     score,
+    strip_entity_fields,
     word_error_rate,
 )
 from .prompts import build_messages
@@ -72,7 +73,7 @@ class GenerationEvalCallback(TrainerCallback):
         n_invalid_json = 0
 
         for row, gen_text in zip(self.rows, generations):
-            gold_text = row["response"]
+            gold_text = strip_entity_fields(row["response"])
             gold_entities = parse_entities(gold_text) or []
             pred_entities = parse_entities(gen_text)
             if pred_entities is None:

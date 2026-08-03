@@ -20,7 +20,6 @@ class Assertion(str, Enum):
 
 class MedicalTerm(BaseModel):
     text: str = Field(description="Chuỗi trích xuất nguyên văn của thực thể, phải khớp chính xác một đoạn con trong văn bản đầu vào.")
-    type: MedicalTermType = Field(description="Loại thực thể y khoa: triệu chứng, chẩn đoán, xét nghiệm, kết quả xét nghiệm, hoặc thuốc.")
     assertions: List[Assertion] = Field(description="Các assertion áp dụng cho thực thể (phủ định, tiền sử gia đình, tiền sử bệnh nhân); để trống nếu không có.")
 
 
